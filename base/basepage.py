@@ -1,6 +1,7 @@
 # base/basepage.py
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import requests
 
 
 class BasePage:
@@ -18,6 +19,5 @@ class BasePage:
         WebDriverWait(self.driver, timeout).until(
             lambda d: d.current_url != old_url
         )
-    
-  
 
+    
