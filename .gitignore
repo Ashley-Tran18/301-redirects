@@ -11,3 +11,5 @@ venv/
 *.jpeg
 *.gif
 " > .gitignore
+__pycache__
+.pytest_cache
