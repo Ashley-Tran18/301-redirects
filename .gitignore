@@ -1,0 +1,13 @@
+# Create .gitignore
+echo "__pycache__/
+*.pyc
+.DS_Store
+allure-results/
+allure-report/
+venv/
+.venv/
+*.png
+*.jpg
+*.jpeg
+*.gif
+" > .gitignore
