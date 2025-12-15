@@ -98,11 +98,11 @@ class TestRedirects(BaseTest):
 
             with allure.step(f"Navigate to staging URL: {staging_url}"):
                 page.open(staging_url)
-                allure.attach(
-                    body=self.driver.get_screenshot_as_png(),
-                    name=f"Screenshot: {staging_url}",
-                    attachment_type=AttachmentType.PNG
-                )
+                # allure.attach(
+                #     body=self.driver.get_screenshot_as_png(),
+                #     name=f"Screenshot: {staging_url}",
+                #     attachment_type=AttachmentType.PNG
+                # )
 
             page.wait_for_url_change(staging_url)
             actual_url = page.current_url()
