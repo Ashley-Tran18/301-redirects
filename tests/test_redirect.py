@@ -211,18 +211,39 @@ def create_retry_session():
 
 # ================= PYTEST PARAM =================
 
+# def pytest_generate_tests(metafunc):
+#     if "row" not in metafunc.fixturenames:
+#         return
+
+#     chunk_opt = metafunc.config.getoption("--chunk")
+#     chunk = int(chunk_opt) if chunk_opt else 1
+
+#     df = load_csv()
+#     batch_df, _ = get_batch(df, chunk)
+
+#     records = batch_df.to_dict("records")
+#     ids = [f"chunk{chunk}_row{i+1}" for i in range(len(records))]
+
+#     metafunc.parametrize("row", records, ids=ids)
+
+
 def pytest_generate_tests(metafunc):
     if "row" not in metafunc.fixturenames:
         return
 
     chunk_opt = metafunc.config.getoption("--chunk")
-    chunk = int(chunk_opt) if chunk_opt else 1
+    chunk = int(chunk_opt) if chunk_opt else None  # None nghĩa là chạy all
 
     df = load_csv()
-    batch_df, _ = get_batch(df, chunk)
+
+    if chunk is None:
+        batch_df = df
+        total_chunks = 1
+    else:
+        batch_df, total_chunks = get_batch(df, chunk)
 
     records = batch_df.to_dict("records")
-    ids = [f"chunk{chunk}_row{i+1}" for i in range(len(records))]
+    ids = [f"row{i+1}" for i in range(len(records))]
 
     metafunc.parametrize("row", records, ids=ids)
 
