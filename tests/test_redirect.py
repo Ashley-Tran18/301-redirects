@@ -185,7 +185,9 @@ def get_batch(df: pd.DataFrame, chunk: int):
     total_chunks = math.ceil(total / BATCH_SIZE)
 
     if chunk < 1 or chunk > total_chunks:
-        pytest.skip(f"Chunk {chunk} out of range (1-{total_chunks})")
+        # Thay vì skip và gây exit code 5, chỉ warning và return empty
+        print(f"WARNING: Chunk {chunk} out of range (1-{total_chunks}). No tests to run.")
+        return pd.DataFrame(), total_chunks  # Trả về DataFrame rỗng
 
     start = (chunk - 1) * BATCH_SIZE
     end = start + BATCH_SIZE
@@ -216,21 +218,24 @@ def pytest_generate_tests(metafunc):
         return
 
     chunk_opt = metafunc.config.getoption("--chunk")
-    chunk = int(chunk_opt) if chunk_opt else None  # None nghĩa là chạy all
+    chunk = int(chunk_opt) if chunk_opt else None
 
     df = load_csv()
 
     if chunk is None:
         batch_df = df
-        total_chunks = 1
     else:
         batch_df, total_chunks = get_batch(df, chunk)
+        print(f"Running chunk {chunk}/{total_chunks} with {len(batch_df)} tests")
+
+    if len(batch_df) == 0:
+        # Không parametrize gì cả → pytest sẽ báo "no tests ran" nhưng exit code 0
+        return
 
     records = batch_df.to_dict("records")
     ids = [f"row{i+1}" for i in range(len(records))]
 
     metafunc.parametrize("row", records, ids=ids)
-
 # ================= FIXTURES =================
 
 @pytest.fixture(scope="session")
