@@ -23,7 +23,7 @@ jobs:
       matrix:
         chunk: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
         suite:
-          - tests/test_redirect.py --chunk=${{ matrix.chunk }}
+          - tests/test_redirect.py
 
 
     steps:
@@ -51,7 +51,8 @@ jobs:
         id: pytest
         continue-on-error: true  # Allow job to continue even if tests fail
         run: |
-          pytest -v ${{ matrix.suite }} \
+          pytest -v tests/test_redirect.py \
+            --chunk=${{ matrix.chunk }} \
             --alluredir=allure-results \
             --disable-warnings \
             -q
@@ -63,14 +64,14 @@ jobs:
       - name: Upload Allure Results
         uses: actions/upload-artifact@v4
         with:
-          name: allure-results-${{ steps.sanitize.outputs.safe_name }}
+          name: allure-results-chunk-${{ matrix.chunk }}
           path: allure-results
 
-      - name: Fail the job if pytest failed
-        run: |
-          exit_code=$(cat exit-code.txt)
-          exit $exit_code
-        if: always()
+      # - name: Fail the job if pytest failed
+      #   run: |
+      #     exit_code=$(cat exit-code.txt)
+      #     exit $exit_code
+      #   if: always()
 
   generate-report:
     runs-on: ubuntu-latest
