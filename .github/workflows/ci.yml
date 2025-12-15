@@ -190,16 +190,13 @@ jobs:
 # 2️⃣ TEST JOB – RUN PYTEST PER CHUNK
 # ======================================================
   test:
-    needs: prepare
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        chunk: ${{ fromJson(
-          needs.prepare.outputs.has_manual_chunk == 'true' &&
-          needs.prepare.outputs.manual_chunk ||
-          needs.prepare.outputs.matrix
-        ) }}
+  needs: prepare
+  runs-on: ubuntu-latest
+  strategy:
+    fail-fast: false
+    matrix:
+      chunk: ${{ fromJson(needs.prepare.outputs.matrix) }}
+
 
     steps:
       - name: Checkout code
