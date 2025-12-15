@@ -141,7 +141,7 @@ from base.basetest import BaseTest
 
 # ================= CONFIG =================
 CSV_FILE = os.path.join(os.path.dirname(__file__), "..", "redirect_mapping.csv")
-BATCH_SIZE = 1
+BATCH_SIZE = 500
 TIMEOUT = 15
 FAILED_DIR = os.path.join(os.path.dirname(__file__), "..", "failed")
 
@@ -211,22 +211,6 @@ def create_retry_session():
 
 # ================= PYTEST PARAM =================
 
-# def pytest_generate_tests(metafunc):
-#     if "row" not in metafunc.fixturenames:
-#         return
-
-#     chunk_opt = metafunc.config.getoption("--chunk")
-#     chunk = int(chunk_opt) if chunk_opt else 1
-
-#     df = load_csv()
-#     batch_df, _ = get_batch(df, chunk)
-
-#     records = batch_df.to_dict("records")
-#     ids = [f"chunk{chunk}_row{i+1}" for i in range(len(records))]
-
-#     metafunc.parametrize("row", records, ids=ids)
-
-
 def pytest_generate_tests(metafunc):
     if "row" not in metafunc.fixturenames:
         return
@@ -246,7 +230,6 @@ def pytest_generate_tests(metafunc):
     ids = [f"row{i+1}" for i in range(len(records))]
 
     metafunc.parametrize("row", records, ids=ids)
-
 
 # ================= FIXTURES =================
 

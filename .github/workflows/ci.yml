@@ -158,32 +158,41 @@ jobs:
   # =========================
   # PREPARE JOB
   # =========================
-  prepare:
+    prepare:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
-
+      total_rows: ${{ steps.set-matrix.outputs.total_rows }}
+      batch_size: ${{ steps.set-matrix.outputs.batch_size }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set matrix
+      - name: Calculate matrix chunks
         id: set-matrix
         run: |
-          if [ -n "${{ github.event.inputs.chunk }}" ]; then
-            echo "matrix=[${{ github.event.inputs.chunk }}]" >> $GITHUB_OUTPUT
-          else
-            total=$(($(wc -l < redirect_mapping.csv) - 1))
-            batch_size=3825
-            chunks=$(( (total + batch_size - 1) / batch_size ))
+          total=$(($(wc -l < redirect_mapping.csv) - 1))
+          echo "Total rows: $total"
+          echo "total_rows=$total" >> $GITHUB_OUTPUT
 
-            matrix=$(seq -s, 1 $chunks | sed 's/,/, /g')
-            echo "matrix=[${matrix}]" >> $GITHUB_OUTPUT
+          # CI quyết định batch_size ở đây
+          batch_size=200
+          echo "batch_size=$batch_size" >> $GITHUB_OUTPUT
+
+          if [ -n "${{ inputs.chunk }}" ]; then
+            echo "Running specific chunk: ${{ inputs.chunk }}"
+            echo "matrix=[${{ inputs.chunk }}]" >> $GITHUB_OUTPUT
+          else
+            chunks=$(( (total + batch_size - 1) / batch_size ))
+            echo "Total chunks: $chunks (batch_size=$batch_size)"
+
+            matrix=$(seq 1 $chunks | paste -sd, -)
+            echo "matrix=[$matrix]" >> $GITHUB_OUTPUT
           fi
 
   # =========================
   # TEST JOB
   # =========================
-  test:
+    test:
     needs: prepare
     runs-on: ubuntu-latest
     strategy:
@@ -191,90 +200,92 @@ jobs:
       matrix:
         chunk: ${{ fromJson(needs.prepare.outputs.matrix) }}
 
-    steps:
-      - uses: actions/checkout@v4
+      steps:
+        - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.13"
+        - name: Set up Python
+          uses: actions/setup-python@v4
+          with:
+            python-version: "3.13"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install allure-pytest
+        - name: Install dependencies
+          run: |
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+            pip install allure-pytest
+        
+        - name: Run pytest (chunk ${{ matrix.chunk }})
+          env:
+            REDIRECT_BATCH_SIZE: ${{ needs.prepare.outputs.batch_size }}
+          run: |
+            mkdir -p allure-results
+            pytest tests/test_redirect.py \
+              --chunk=${{ matrix.chunk }} \
+              --alluredir=allure-results \
+              -v
 
-      - name: Run pytest (chunk ${{ matrix.chunk }})
-        continue-on-error: true
-        run: |
-          pytest tests/test_redirect.py \
-            --chunk=${{ matrix.chunk }} \
-            --alluredir=allure-results \
-            -q
-
-      - name: Upload Allure Results
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-results-chunk-${{ matrix.chunk }}
-          path: allure-results
+        - name: Upload Allure Results
+          uses: actions/upload-artifact@v4
+          with:
+            name: allure-results-chunk-${{ matrix.chunk }}
+            path: allure-results
 
   # =========================
   # GENERATE REPORT
   # =========================
-  generate-report:
-    needs: test
-    runs-on: ubuntu-latest
-    if: always()
+    generate-report:
+      needs: test
+      runs-on: ubuntu-latest
+      if: always()
 
-    steps:
-      - uses: actions/checkout@v4
+      steps:
+        - uses: actions/checkout@v4
 
-      - name: Install tools
-        run: sudo apt-get update && sudo apt-get install -y gh unzip
+        - name: Install tools
+          run: sudo apt-get update && sudo apt-get install -y gh unzip
 
-      - name: Download and merge Allure results
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p allure-results
-          artifacts=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
-            --jq '.artifacts[].name' | grep '^allure-results-')
+        - name: Download and merge Allure results
+          env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+            mkdir -p allure-results
+            artifacts=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
+              --jq '.artifacts[].name' | grep '^allure-results-')
 
-          for name in $artifacts; do
-            url=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
-              --jq ".artifacts[] | select(.name==\"$name\") | .archive_download_url")
-            curl -sL -H "Authorization: token $GH_TOKEN" "$url" -o "$name.zip"
-            unzip -q "$name.zip" -d tmp
-            cp -r tmp/* allure-results/
-            rm -rf tmp "$name.zip"
-          done
+            for name in $artifacts; do
+              url=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
+                --jq ".artifacts[] | select(.name==\"$name\") | .archive_download_url")
+              curl -sL -H "Authorization: token $GH_TOKEN" "$url" -o "$name.zip"
+              unzip -q "$name.zip" -d tmp
+              cp -r tmp/* allure-results/
+              rm -rf tmp "$name.zip"
+            done
 
-      - name: Install Allure CLI
-        run: |
-          wget https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
-          tar -xzf allure-2.27.0.tgz
-          sudo mv allure-2.27.0 /opt/allure
-          sudo ln -s /opt/allure/bin/allure /usr/bin/allure
+        - name: Install Allure CLI
+          run: |
+            wget https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
+            tar -xzf allure-2.27.0.tgz
+            sudo mv allure-2.27.0 /opt/allure
+            sudo ln -s /opt/allure/bin/allure /usr/bin/allure
 
-      - name: Generate Allure report
-        run: allure generate allure-results -o allure-report --clean
+        - name: Generate Allure report
+          run: allure generate allure-results -o allure-report --clean
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: allure-report
+        - name: Upload Pages artifact
+          uses: actions/upload-pages-artifact@v4
+          with:
+            path: allure-report
 
   # =========================
   # DEPLOY REPORT
   # =========================
-  deploy-report:
-    needs: generate-report
-    runs-on: ubuntu-latest
-    if: always()
-    environment:
-      name: github-pages
+    deploy-report:
+      needs: generate-report
+      runs-on: ubuntu-latest
+      if: always()
+      environment:
+        name: github-pages
 
-    steps:
-      - name: Deploy report to GitHub Pages
-        uses: actions/deploy-pages@v4
+      steps:
+        - name: Deploy report to GitHub Pages
+          uses: actions/deploy-pages@v4
