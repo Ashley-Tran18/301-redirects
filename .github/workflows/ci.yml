@@ -160,39 +160,31 @@ jobs:
 # 1️⃣ PREPARE JOB – CALCULATE TOTAL CHUNKS
 # ======================================================
   prepare:
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-      has_manual_chunk: ${{ steps.check-manual.outputs.has_manual_chunk }}
-      manual_chunk: ${{ steps.check-manual.outputs.manual_chunk }}
+  runs-on: ubuntu-latest
+  outputs:
+    matrix: ${{ steps.set-matrix.outputs.matrix }}
 
-    steps:
-      - uses: actions/checkout@v4
+  steps:
+    - uses: actions/checkout@v4
 
-      - name: Check manual chunk input
-        id: check-manual
-        run: |
-          if [ -n "${{ github.event.inputs.chunk }}" ]; then
-            echo "has_manual_chunk=true" >> $GITHUB_OUTPUT
-            echo "manual_chunk=[${{ github.event.inputs.chunk }}]" >> $GITHUB_OUTPUT
-          else
-            echo "has_manual_chunk=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Calculate chunks from CSV
-        id: set-matrix
-        if: steps.check-manual.outputs.has_manual_chunk == 'false'
-        run: |
+    - name: Set matrix
+      id: set-matrix
+      run: |
+        if [ -n "${{ github.event.inputs.chunk }}" ]; then
+          echo "Manual chunk detected"
+          echo "matrix=[${{ github.event.inputs.chunk }}]" >> $GITHUB_OUTPUT
+        else
           total=$(($(wc -l < redirect_mapping.csv) - 1))
           batch_size=3825
           chunks=$(( (total + batch_size - 1) / batch_size ))
 
           echo "Total URLs: $total"
-          echo "Batch size: $batch_size"
           echo "Total chunks: $chunks"
 
           matrix=$(seq -s, 1 $chunks | sed 's/,/, /g')
           echo "matrix=[${matrix}]" >> $GITHUB_OUTPUT
+        fi
+
 
 # ======================================================
 # 2️⃣ TEST JOB – RUN PYTEST PER CHUNK
