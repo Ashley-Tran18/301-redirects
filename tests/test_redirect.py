@@ -141,7 +141,7 @@ from base.basetest import BaseTest
 
 # ================= CONFIG =================
 CSV_FILE = os.path.join(os.path.dirname(__file__), "..", "redirect_mapping.csv")
-BATCH_SIZE = 3825
+BATCH_SIZE = 1
 TIMEOUT = 15
 FAILED_DIR = os.path.join(os.path.dirname(__file__), "..", "failed")
 
