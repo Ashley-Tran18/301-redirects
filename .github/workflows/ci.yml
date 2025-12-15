@@ -154,11 +154,10 @@ permissions:
   id-token: write
 
 jobs:
-
   # =========================
   # PREPARE JOB
   # =========================
-    prepare:
+  prepare:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -174,7 +173,6 @@ jobs:
           echo "Total rows: $total"
           echo "total_rows=$total" >> $GITHUB_OUTPUT
 
-          # CI quyết định batch_size ở đây
           batch_size=200
           echo "batch_size=$batch_size" >> $GITHUB_OUTPUT
 
@@ -192,100 +190,101 @@ jobs:
   # =========================
   # TEST JOB
   # =========================
-    test:
+  test:
     needs: prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         chunk: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    env:
+      REDIRECT_BATCH_SIZE: ${{ needs.prepare.outputs.batch_size }}
 
-      steps:
-        - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-        - name: Set up Python
-          uses: actions/setup-python@v4
-          with:
-            python-version: "3.13"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
 
-        - name: Install dependencies
-          run: |
-            python -m pip install --upgrade pip
-            pip install -r requirements.txt
-            pip install allure-pytest
-        
-        - name: Run pytest (chunk ${{ matrix.chunk }})
-          env:
-            REDIRECT_BATCH_SIZE: ${{ needs.prepare.outputs.batch_size }}
-          run: |
-            mkdir -p allure-results
-            pytest tests/test_redirect.py \
-              --chunk=${{ matrix.chunk }} \
-              --alluredir=allure-results \
-              -v
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install allure-pytest pytest-xdist  # thêm xdist nếu cần sau này
 
-        - name: Upload Allure Results
-          uses: actions/upload-artifact@v4
-          with:
-            name: allure-results-chunk-${{ matrix.chunk }}
-            path: allure-results
+      - name: Run pytest (chunk ${{ matrix.chunk }})
+        run: |
+          mkdir -p allure-results
+          pytest tests/test_redirect.py \
+            --chunk=${{ matrix.chunk }} \
+            --alluredir=allure-results \
+            -v
+
+      - name: Upload Allure Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-chunk-${{ matrix.chunk }}
+          path: allure-results
 
   # =========================
   # GENERATE REPORT
   # =========================
-    generate-report:
-      needs: test
-      runs-on: ubuntu-latest
-      if: always()
+  generate-report:
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
 
-      steps:
-        - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-        - name: Install tools
-          run: sudo apt-get update && sudo apt-get install -y gh unzip
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y gh unzip
 
-        - name: Download and merge Allure results
-          env:
-            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          run: |
-            mkdir -p allure-results
-            artifacts=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
-              --jq '.artifacts[].name' | grep '^allure-results-')
+      - name: Download and merge Allure results
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p allure-results
+          artifacts=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
+            --jq '.artifacts[].name' | grep '^allure-results-')
 
-            for name in $artifacts; do
-              url=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
-                --jq ".artifacts[] | select(.name==\"$name\") | .archive_download_url")
-              curl -sL -H "Authorization: token $GH_TOKEN" "$url" -o "$name.zip"
-              unzip -q "$name.zip" -d tmp
-              cp -r tmp/* allure-results/
-              rm -rf tmp "$name.zip"
-            done
+          for name in $artifacts; do
+            url=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
+              --jq ".artifacts[] | select(.name==\"$name\") | .archive_download_url")
+            curl -sL -H "Authorization: token $GH_TOKEN" "$url" -o "$name.zip"
+            unzip -q "$name.zip" -d tmp
+            cp -r tmp/* allure-results/
+            rm -rf tmp "$name.zip"
+          done
 
-        - name: Install Allure CLI
-          run: |
-            wget https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
-            tar -xzf allure-2.27.0.tgz
-            sudo mv allure-2.27.0 /opt/allure
-            sudo ln -s /opt/allure/bin/allure /usr/bin/allure
+      - name: Install Allure CLI
+        run: |
+          wget https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
+          tar -xzf allure-2.27.0.tgz
+          sudo mv allure-2.27.0 /opt/allure
+          sudo ln -s /opt/allure/bin/allure /usr/bin/allure
 
-        - name: Generate Allure report
-          run: allure generate allure-results -o allure-report --clean
+      - name: Generate Allure report
+        run: allure generate allure-results -o allure-report --clean
 
-        - name: Upload Pages artifact
-          uses: actions/upload-pages-artifact@v4
-          with:
-            path: allure-report
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: allure-report
 
   # =========================
   # DEPLOY REPORT
   # =========================
-    deploy-report:
-      needs: generate-report
-      runs-on: ubuntu-latest
-      if: always()
-      environment:
-        name: github-pages
+  deploy-report:
+    needs: generate-report
+    runs-on: ubuntu-latest
+    if: always()
+    environment:
+      name: github-pages
 
-      steps:
-        - name: Deploy report to GitHub Pages
-          uses: actions/deploy-pages@v4
+    steps:
+      - name: Deploy report to GitHub Pages
+        uses: actions/deploy-pages@v4
