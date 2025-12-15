@@ -141,7 +141,6 @@ on:
       chunk:
         description: "Run specific chunk only (optional)"
         required: false
-        type: string
   push:
     branches: [main]
   pull_request:
@@ -156,51 +155,44 @@ permissions:
 
 jobs:
 
-# ======================================================
-# 1️⃣ PREPARE JOB – CALCULATE TOTAL CHUNKS
-# ======================================================
+  # =========================
+  # PREPARE JOB
+  # =========================
   prepare:
-  runs-on: ubuntu-latest
-  outputs:
-    matrix: ${{ steps.set-matrix.outputs.matrix }}
-
-  steps:
-    - uses: actions/checkout@v4
-
-    - name: Set matrix
-      id: set-matrix
-      run: |
-        if [ -n "${{ github.event.inputs.chunk }}" ]; then
-          echo "Manual chunk detected"
-          echo "matrix=[${{ github.event.inputs.chunk }}]" >> $GITHUB_OUTPUT
-        else
-          total=$(($(wc -l < redirect_mapping.csv) - 1))
-          batch_size=3825
-          chunks=$(( (total + batch_size - 1) / batch_size ))
-
-          echo "Total URLs: $total"
-          echo "Total chunks: $chunks"
-
-          matrix=$(seq -s, 1 $chunks | sed 's/,/, /g')
-          echo "matrix=[${matrix}]" >> $GITHUB_OUTPUT
-        fi
-
-
-# ======================================================
-# 2️⃣ TEST JOB – RUN PYTEST PER CHUNK
-# ======================================================
-  test:
-  needs: prepare
-  runs-on: ubuntu-latest
-  strategy:
-    fail-fast: false
-    matrix:
-      chunk: ${{ fromJson(needs.prepare.outputs.matrix) }}
-
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          if [ -n "${{ github.event.inputs.chunk }}" ]; then
+            echo "matrix=[${{ github.event.inputs.chunk }}]" >> $GITHUB_OUTPUT
+          else
+            total=$(($(wc -l < redirect_mapping.csv) - 1))
+            batch_size=3825
+            chunks=$(( (total + batch_size - 1) / batch_size ))
+
+            matrix=$(seq -s, 1 $chunks | sed 's/,/, /g')
+            echo "matrix=[${matrix}]" >> $GITHUB_OUTPUT
+          fi
+
+  # =========================
+  # TEST JOB
+  # =========================
+  test:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: ${{ fromJson(needs.prepare.outputs.matrix) }}
+
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -227,12 +219,12 @@ jobs:
           name: allure-results-chunk-${{ matrix.chunk }}
           path: allure-results
 
-# ======================================================
-# 3️⃣ GENERATE ALLURE REPORT
-# ======================================================
+  # =========================
+  # GENERATE REPORT
+  # =========================
   generate-report:
-    runs-on: ubuntu-latest
     needs: test
+    runs-on: ubuntu-latest
     if: always()
 
     steps:
@@ -252,7 +244,6 @@ jobs:
           for name in $artifacts; do
             url=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
               --jq ".artifacts[] | select(.name==\"$name\") | .archive_download_url")
-
             curl -sL -H "Authorization: token $GH_TOKEN" "$url" -o "$name.zip"
             unzip -q "$name.zip" -d tmp
             cp -r tmp/* allure-results/
@@ -274,12 +265,12 @@ jobs:
         with:
           path: allure-report
 
-# ======================================================
-# 4️⃣ DEPLOY REPORT TO GITHUB PAGES
-# ======================================================
+  # =========================
+  # DEPLOY REPORT
+  # =========================
   deploy-report:
-    runs-on: ubuntu-latest
     needs: generate-report
+    runs-on: ubuntu-latest
     if: always()
     environment:
       name: github-pages
