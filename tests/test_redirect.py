@@ -75,7 +75,7 @@ import requests
 csv_path = os.path.join(os.path.dirname(__file__), "..", "redirect_mapping.csv")
 df = pd.read_csv(csv_path)
 
-BATCH_SIZE = 200  # số URL trong mỗi batch
+BATCH_SIZE = 500  # số URL trong mỗi batch
 
 def chunkify(lst, n):
     """Chia list lst thành các chunk có kích thước n"""
