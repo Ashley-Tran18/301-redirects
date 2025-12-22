@@ -2,7 +2,7 @@
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse, unquote, quote
 import re
 
 
@@ -17,10 +17,6 @@ class BasePage:
     def current_url(self):
         return self.driver.current_url
     
-    # def wait_for_url_change(self, old_url, timeout=10):
-    #     WebDriverWait(self.driver, timeout).until(
-    #         lambda d: d.current_url != old_url
-    #     )
     def wait_for_url_change(self, old_url, timeout=10):  # Add a sensible timeout, e.g. 30s
         try:
             WebDriverWait(self.driver, timeout).until(
@@ -49,6 +45,29 @@ class BasePage:
             path,
             parsed.params,
             parsed.query,
+            
             ''
         ))
         return normalized
+    
+
+
+# def normalize_url(self, url: str) -> str:
+#     if not url:
+#         return ""
+
+#     url = url.strip()
+
+#     parsed = urlparse(url)
+
+#     # Decode rồi encode lại path cho đồng nhất
+#     normalized_path = quote(unquote(parsed.path), safe="/+:")
+
+#     return urlunparse((
+#         parsed.scheme.lower(),
+#         parsed.netloc.lower(),
+#         normalized_path.rstrip("/"),
+#         "",
+#         "",
+#         ""
+#     ))
