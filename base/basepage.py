@@ -1,6 +1,7 @@
 # base/basepage.py
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 from urllib.parse import urlparse, urlunparse
 import re
 
@@ -16,10 +17,20 @@ class BasePage:
     def current_url(self):
         return self.driver.current_url
     
-    def wait_for_url_change(self, old_url, timeout=10):
-        WebDriverWait(self.driver, timeout).until(
-            lambda d: d.current_url != old_url
-        )
+    # def wait_for_url_change(self, old_url, timeout=10):
+    #     WebDriverWait(self.driver, timeout).until(
+    #         lambda d: d.current_url != old_url
+    #     )
+    def wait_for_url_change(self, old_url, timeout=10):  # Add a sensible timeout, e.g. 30s
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                lambda d: d.current_url != old_url
+            )
+        except TimeoutException:
+            # If no change after timeout, assume it's intentional (no redirect)
+            # You can log or just proceed – the assertion will catch mismatches
+            pass
+
 
     def normalize_url(self, url: str) -> str:
         url = url.strip()

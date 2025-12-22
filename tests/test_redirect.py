@@ -89,7 +89,10 @@ class TestRedirects(BaseTest):
 
     @pytest.mark.parametrize("batch_index,batch", [(i, b) for i, b in enumerate(batches)])
     @allure.title("Verify redirect batch {batch_index}")
-    def test_redirect_batch(self, batch_index, batch):
+    def test_redirect_batch(self, batch_index, batch, chunk):
+        if batch_index != chunk:
+            pytest.skip()
+
         page = BasePage(self.driver)
 
         for row in batch:
