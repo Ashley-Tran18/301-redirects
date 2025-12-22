@@ -27,7 +27,7 @@ class BaseTest:
         }
         options.add_experimental_option("prefs", prefs)
 
-        # # Bật performance log để bắt 301/302 nếu muốn
+        # # Bật performance log để bắt 301/302
         options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
         
         self.driver = webdriver.Chrome(service=Service(), options=options)

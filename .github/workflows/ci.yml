@@ -133,8 +133,7 @@
 #         id: deployment
 #         uses: actions/deploy-pages@v4
 
-# name: Run Script to Verify 301 Redirects
-
+name: Run Script to Verify 301 Redirects
 on:
   push:
     branches:
@@ -142,8 +141,8 @@ on:
   pull_request:
     branches:
       - main
-  schedule:
-    - cron: '0 1 * * *'
+  # schedule:
+  #   - cron: '0 1 * * *'
 
 permissions:
   contents: read
