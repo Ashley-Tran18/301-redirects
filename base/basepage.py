@@ -28,46 +28,56 @@ class BasePage:
             pass
 
 
+    # def normalize_url(self, url: str) -> str:
+    #     url = url.strip()
+    #     parsed = urlparse(url)
+    #     path = parsed.path if parsed.path else '/'
+        
+    #     # Collapse tất cả multiple slashes thành single
+    #     path = re.sub(r'/+', '/', path)
+        
+    #     # Loại bỏ trailing slash (trừ root)
+    #     path = path.rstrip('/') if path != '/' else '/'
+        
+    #     normalized = urlunparse((
+    #         parsed.scheme.lower(),
+    #         parsed.netloc.lower(),
+    #         path,
+    #         parsed.params,
+    #         parsed.query,
+            
+    #         ''
+    #     ))
+    #     return normalized
+    
+
+
     def normalize_url(self, url: str) -> str:
+        if not url:
+            return ""
+
         url = url.strip()
         parsed = urlparse(url)
+
         path = parsed.path if parsed.path else '/'
-        
-        # Collapse tất cả multiple slashes thành single
+
+        # Decode rồi encode lại để chuẩn hóa Unicode (®, é, ü...)
+        path = quote(unquote(path), safe="/+:")
+
+        # Collapse multiple slashes thành single
         path = re.sub(r'/+', '/', path)
-        
+
         # Loại bỏ trailing slash (trừ root)
         path = path.rstrip('/') if path != '/' else '/'
-        
+
         normalized = urlunparse((
             parsed.scheme.lower(),
             parsed.netloc.lower(),
             path,
-            parsed.params,
-            parsed.query,
-            
-            ''
+            "",              # params (không dùng)
+            parsed.query,    # giữ query (?p=3)
+            ""               # fragment
         ))
+
         return normalized
-    
 
-
-# def normalize_url(self, url: str) -> str:
-#     if not url:
-#         return ""
-
-#     url = url.strip()
-
-#     parsed = urlparse(url)
-
-#     # Decode rồi encode lại path cho đồng nhất
-#     normalized_path = quote(unquote(parsed.path), safe="/+:")
-
-#     return urlunparse((
-#         parsed.scheme.lower(),
-#         parsed.netloc.lower(),
-#         normalized_path.rstrip("/"),
-#         "",
-#         "",
-#         ""
-#     ))

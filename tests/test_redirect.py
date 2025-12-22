@@ -6,6 +6,7 @@ import allure
 from base.basetest import BaseTest
 from base.basepage import BasePage
 from allure_commons.types import AttachmentType
+# from utils.redirect_helper import RedirectHelper, Retry
 import requests
 
 # === SAFER CSV LOADING ===
@@ -29,9 +30,7 @@ class TestRedirects(BaseTest):
 
     def test_redirect_batch(self, batch_index, batch, chunk):
         if batch_index != chunk:
-             assert batch_index == chunk, \
-        f"This test should only run for chunk {chunk}"
-            # pytest.skip()
+            pytest.skip()
 
         page = BasePage(self.driver)
 
@@ -65,3 +64,26 @@ class TestRedirects(BaseTest):
 
             assert actual_url_norm == expected_norm, \
                 f"\n❌ Redirect mismatch!\nExpected: {expected_norm}\nActual: {actual_url_norm}\nOriginal Actual: {actual_url}"
+
+
+        # for row in batch:
+        #     staging_url = row["Staging URL"].strip()
+        #     expected = row["Redirected To (Staging URLs)"].strip()
+
+        #     try:
+        #         result = RedirectHelper.requests_redirect(staging_url)
+        #         actual = result["final_url"]
+        #         source = "requests"
+        #     except Exception:
+        #         page.open(staging_url)
+        #         page.wait_for_url_change(staging_url)
+        #         actual = page.current_url()
+        #         source = "selenium"
+
+        #     actual_norm = page.normalize_url(actual)
+        #     expected_norm = page.normalize_url(expected)
+
+        #     with allure.step(f"Verify redirect ({source})"):
+        #         assert actual_norm == expected_norm
+        #         f"\n❌ Redirect mismatch!\nExpected: {expected_norm}\nActual: {actual_norm}"
+
