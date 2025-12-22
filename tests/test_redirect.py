@@ -6,7 +6,7 @@ import allure
 from base.basetest import BaseTest
 from base.basepage import BasePage
 from allure_commons.types import AttachmentType
-# from utils.redirect_helper import RedirectHelper, Retry
+from utils.redirect_helper import RedirectHelper, Retry
 import requests
 
 # === SAFER CSV LOADING ===
@@ -34,56 +34,56 @@ class TestRedirects(BaseTest):
 
         page = BasePage(self.driver)
 
-        for row in batch:
-            staging_url = str(row["Staging URL"]).strip()
-            expected_redirect = str(row["Redirected To (Staging URLs)"]).strip()
-
-            with allure.step(f"Navigate to staging URL: {staging_url}"):
-                page.open(staging_url)
-                allure.attach(
-                    body=self.driver.get_screenshot_as_png(),
-                    name=f"Screenshot: {staging_url}",
-                    attachment_type=AttachmentType.PNG
-                )
-
-            page.wait_for_url_change(staging_url)
-            actual_url = page.current_url()
-
-            try:
-                response = requests.get(staging_url, allow_redirects=True, timeout=10)
-                http_final_url = response.url
-                history_status = [f"{r.status_code} -> {r.url}" for r in response.history]
-                with allure.step(f"HTTP redirect chain (requests): {' -> '.join(history_status + [http_final_url])}"):
-                    pass
-            except Exception as e:
-                with allure.step(f"Requests failed: {e}"):
-                    pass
-
-            actual_url_norm = page.normalize_url(actual_url)
-            expected_norm = page.normalize_url(expected_redirect)
-
-            assert actual_url_norm == expected_norm, \
-                f"\n❌ Redirect mismatch!\nExpected: {expected_norm}\nActual: {actual_url_norm}\nOriginal Actual: {actual_url}"
-
-
         # for row in batch:
-        #     staging_url = row["Staging URL"].strip()
-        #     expected = row["Redirected To (Staging URLs)"].strip()
+        #     staging_url = str(row["Staging URL"]).strip()
+        #     expected_redirect = str(row["Redirected To (Staging URLs)"]).strip()
+
+        #     with allure.step(f"Navigate to staging URL: {staging_url}"):
+        #         page.open(staging_url)
+        #         allure.attach(
+        #             body=self.driver.get_screenshot_as_png(),
+        #             name=f"Screenshot: {staging_url}",
+        #             attachment_type=AttachmentType.PNG
+        #         )
+
+        #     page.wait_for_url_change(staging_url)
+        #     actual_url = page.current_url()
 
         #     try:
-        #         result = RedirectHelper.requests_redirect(staging_url)
-        #         actual = result["final_url"]
-        #         source = "requests"
-        #     except Exception:
-        #         page.open(staging_url)
-        #         page.wait_for_url_change(staging_url)
-        #         actual = page.current_url()
-        #         source = "selenium"
+        #         response = requests.get(staging_url, allow_redirects=True, timeout=10)
+        #         http_final_url = response.url
+        #         history_status = [f"{r.status_code} -> {r.url}" for r in response.history]
+        #         with allure.step(f"HTTP redirect chain (requests): {' -> '.join(history_status + [http_final_url])}"):
+        #             pass
+        #     except Exception as e:
+        #         with allure.step(f"Requests failed: {e}"):
+        #             pass
 
-        #     actual_norm = page.normalize_url(actual)
-        #     expected_norm = page.normalize_url(expected)
+        #     actual_url_norm = page.normalize_url(actual_url)
+        #     expected_norm = page.normalize_url(expected_redirect)
 
-        #     with allure.step(f"Verify redirect ({source})"):
-        #         assert actual_norm == expected_norm
-        #         f"\n❌ Redirect mismatch!\nExpected: {expected_norm}\nActual: {actual_norm}"
+        #     assert actual_url_norm == expected_norm, \
+        #         f"\n❌ Redirect mismatch!\nExpected: {expected_norm}\nActual: {actual_url_norm}\nOriginal Actual: {actual_url}"
+
+
+        for row in batch:
+            staging_url = row["Staging URL"].strip()
+            expected = row["Redirected To (Staging URLs)"].strip()
+
+            try:
+                result = RedirectHelper.requests_redirect(staging_url)
+                actual = result["final_url"]
+                source = "requests"
+            except Exception:
+                page.open(staging_url)
+                page.wait_for_url_change(staging_url)
+                actual = page.current_url()
+                source = "selenium"
+
+            actual_norm = page.normalize_url(actual)
+            expected_norm = page.normalize_url(expected)
+
+            with allure.step(f"Verify redirect ({source})"):
+                assert actual_norm == expected_norm
+                f"\n❌ Redirect mismatch!\nExpected: {expected_norm}\nActual: {actual_norm}"
 
