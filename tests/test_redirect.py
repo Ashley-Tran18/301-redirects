@@ -34,7 +34,6 @@ class TestRedirects(BaseTest):
         page.wait_for_url_change(staging_url)
         actual_url = page.current_url()
 
-
         # --- HTTP redirect chain (for debugging) ---
         try:
             response = requests.get(
@@ -56,23 +55,6 @@ class TestRedirects(BaseTest):
                 pass
 
         # === ASSERT & ALLURE HANDLING ===
-        # if actual_url != expected_url:
-        #     allure.label("redirect_status", "FAILED")
-
-        #     allure.attach(
-        #         f"""
-        # ❌ Redirect mismatch
-
-        # From: {staging_url}
-        # Expected: {expected_url}
-        # Actual: {actual_url}
-        #         """,
-        #         name="❌ Redirect mismatch",
-        #         attachment_type=AttachmentType.TEXT
-        #     )
-
-        #     pytest.fail(f"Redirect mismatch: {staging_url}")
-
         assert actual_url == expected_url, (
             f"\n❌ Redirect mismatch"
             f"\nFrom: {staging_url}"
