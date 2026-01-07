@@ -15,9 +15,9 @@ df = pd.read_csv(csv_path)
 
 redirect_cases = [
     pytest.param(
-        str(row["Staging URL"]).strip(),
-        str(row["Redirected To (Staging URLs)"]).strip(),
-        id=f"{str(row['Staging URL']).strip()} → {str(row['Redirected To (Staging URLs)']).strip()}"
+        str(row["Page URL"]).strip(),
+        str(row["Redirected To"]).strip(),
+        id=f"{str(row['Page URL']).strip()} → {str(row['Redirected To']).strip()}"
     )
     for _, row in df.iterrows()
 ]
