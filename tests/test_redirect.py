@@ -3,87 +3,82 @@ import pandas as pd
 import os
 import pytest
 import allure
+import requests
 from base.basetest import BaseTest
 from base.basepage import BasePage
 from allure_commons.types import AttachmentType
-from utils.redirect_helper import RedirectHelper, Retry
-import requests
 
-# === SAFER CSV LOADING ===
+
+# === CSV LOADING ===
 csv_path = os.path.join(os.path.dirname(__file__), "..", "redirect_mapping.csv")
 df = pd.read_csv(csv_path)
 
-BATCH_SIZE = 200  # số URL trong mỗi batch
-
-def chunkify(lst, n):
-    """Chia list lst thành các chunk có kích thước n"""
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
-
-batches = list(chunkify(df.to_dict("records"), BATCH_SIZE))
+redirect_cases = [
+    pytest.param(
+        str(row["Page URL"]).strip(),
+        str(row["Redirected To"]).strip(),
+        id=f"{str(row['Page URL']).strip()} → {str(row['Redirected To']).strip()}"
+    )
+    for _, row in df.iterrows()
+]
 
 @pytest.mark.usefixtures("driver")
 class TestRedirects(BaseTest):
 
-    @pytest.mark.parametrize("batch_index,batch", [(i, b) for i, b in enumerate(batches)])
-    @allure.title("Verify redirect batch {batch_index}")
-
-    def test_redirect_batch(self, batch_index, batch, chunk):
-        if batch_index != chunk:
-            pytest.skip()
-
+    @pytest.mark.parametrize("staging_url, expected_url", redirect_cases)
+    @allure.title("Verify redirect batch {staging_url}")
+    def test_redirect(self, staging_url, expected_url):
         page = BasePage(self.driver)
 
-        for row in batch:
-            staging_url = str(row["Page URL"]).strip()
-            expected_redirect = str(row["Redirected To"]).strip()
+        page.open(staging_url)
+        page.wait_for_url_change(staging_url)
+        actual_url = page.current_url()
 
-            with allure.step(f"Navigate to staging URL: {staging_url}"):
-                page.open(staging_url)
+
+        # --- HTTP redirect chain (for debugging) ---
+        try:
+            response = requests.get(
+                staging_url,
+                allow_redirects=True,
+                timeout=10
+            )
+            chain = [f"{r.status_code} → {r.url}" for r in response.history]
+            chain.append(response.url)
+
+            with allure.step("HTTP redirect chain (requests)"):
                 allure.attach(
-                    body=self.driver.get_screenshot_as_png(),
-                    name=f"Screenshot: {staging_url}",
-                    attachment_type=AttachmentType.PNG
+                    "\n".join(chain),
+                    name="Redirect chain",
+                    attachment_type=AttachmentType.TEXT
                 )
+        except Exception as e:
+            with allure.step(f"Requests failed: {e}"):
+                pass
 
-            page.wait_for_url_change(staging_url)
-            actual_url = page.current_url()
+        # === ASSERT & ALLURE HANDLING ===
+        # if actual_url != expected_url:
+        #     allure.label("redirect_status", "FAILED")
 
-            try:
-                response = requests.get(staging_url, allow_redirects=True, timeout=10)
-                http_final_url = response.url
-                history_status = [f"{r.status_code} -> {r.url}" for r in response.history]
-                with allure.step(f"HTTP redirect chain (requests): {' -> '.join(history_status + [http_final_url])}"):
-                    pass
-            except Exception as e:
-                with allure.step(f"Requests failed: {e}"):
-                    pass
+        #     allure.attach(
+        #         f"""
+        # ❌ Redirect mismatch
 
-            actual_url_norm = page.normalize_url(actual_url)
-            expected_norm = page.normalize_url(expected_redirect)
+        # From: {staging_url}
+        # Expected: {expected_url}
+        # Actual: {actual_url}
+        #         """,
+        #         name="❌ Redirect mismatch",
+        #         attachment_type=AttachmentType.TEXT
+        #     )
 
-            assert actual_url_norm == expected_norm, \
-                f"\n❌ Redirect mismatch!\nExpected: {expected_norm}\nActual: {actual_url_norm}\nOriginal Actual: {actual_url}"
+        #     pytest.fail(f"Redirect mismatch: {staging_url}")
+
+        assert actual_url == expected_url, (
+            f"\n❌ Redirect mismatch"
+            f"\nFrom: {staging_url}"
+            f"\nExpected: {expected_url}"
+            f"\nActual: {actual_url}"
+        )
 
 
-        # for row in batch:
-        #     staging_url = row["Page URL"].strip()
-        #     expected = row["Redirected To"].strip()
-
-        #     try:
-        #         result = RedirectHelper.requests_redirect(staging_url)
-        #         actual = result["final_url"]
-        #         source = "requests"
-        #     except Exception:
-        #         page.open(staging_url)
-        #         page.wait_for_url_change(staging_url)
-        #         actual = page.current_url()
-        #         source = "selenium"
-
-        #     actual_norm = page.normalize_url(actual)
-        #     expected_norm = page.normalize_url(expected)
-
-        #     with allure.step(f"Verify redirect ({source})"):
-        #         assert actual_norm == expected_norm
-        #         f"\n❌ Redirect mismatch!\nExpected: {expected_norm}\nActual: {actual_norm}"
-
+          
