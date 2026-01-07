@@ -40,7 +40,7 @@ jobs:
 
       - name: Run pytest
         run: |
-          pytest -v tests/test_redirect.py \
+          pytest -n 50 tests/test_redirect.py \
             --alluredir=allure-results \
             --disable-warnings \
 
