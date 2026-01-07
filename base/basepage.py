@@ -28,30 +28,6 @@ class BasePage:
             pass
 
 
-    # def normalize_url(self, url: str) -> str:
-    #     url = url.strip()
-    #     parsed = urlparse(url)
-    #     path = parsed.path if parsed.path else '/'
-        
-    #     # Collapse tất cả multiple slashes thành single
-    #     path = re.sub(r'/+', '/', path)
-        
-    #     # Loại bỏ trailing slash (trừ root)
-    #     path = path.rstrip('/') if path != '/' else '/'
-        
-    #     normalized = urlunparse((
-    #         parsed.scheme.lower(),
-    #         parsed.netloc.lower(),
-    #         path,
-    #         parsed.params,
-    #         parsed.query,
-            
-    #         ''
-    #     ))
-    #     return normalized
-    
-
-
     def normalize_url(self, url: str) -> str:
         if not url:
             return ""
